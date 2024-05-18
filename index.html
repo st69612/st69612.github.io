@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="cs">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Výpočty</title>
+    <script>
+        function prepocitej(hodnota) {
+            if (hodnota > 1_000_000_000)
+                return [hodnota / (1024.0 * 1024.0 * 1024.0), 'GB'];
+            if (hodnota > 1_000_000)
+                return [hodnota / (1024.0 * 1024.0), 'MB'];
+            if (hodnota > 1000)
+                return [hodnota / 1024.0, 'kB'];
+            return [hodnota, 'B'];
+        }
+
+        function fs_vypocet() {
+            const sektory = document.getElementById("fs-sektory").value;
+            const fat = document.getElementById("fs-fat").value;
+            const hodnota = sektory * 512 * Math.pow(2, fat);
+            const prepocet = prepocitej(hodnota);
+            const vysledek = document.getElementById("fs-vysledek");
+            vysledek.innerHTML = prepocet[0] + ' ' + prepocet[1];
+        }
+
+    </script>
+</head>
+
+<body>
+    <h2>Maximální velikost souborového systému FAT</h2>
+    Velikost alokační jednotky <input type="number" name="fs-sektory" id="fs-sektory"> sektorů<br>
+    FAT<input type="number" name="fs-fat" id="fs-fat">
+    <button onclick="fs_vypocet()">Vypočítat</button>
+    <div>Maximální velikost: <span id="fs-vysledek">?</span></div>
+</body>
+
+</html>
