@@ -5,7 +5,39 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Výpočty</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 30px;
+            margin: 1rem 3rem;
+        }
+
+        h2 {
+            margin-top: 1.5rem;
+        }
+
+        input,
+        select {
+            height: 1.5rem;
+            width: 8em;
+        }
+
+        button {
+            padding: .3rem;
+        }
+
+        div {
+            margin-top: 0.5em;
+        }
+    </style>
     <script>
+        const jednotky = [
+            ['B', 1],
+            ['kB', 1024],
+            ['MB', 1024 * 1024],
+            ['GB', 1024 * 1024 * 1024]
+        ];
+
         function prepocitej(hodnota) {
             if (hodnota > 1_000_000_000)
                 return [hodnota / (1024.0 * 1024.0 * 1024.0), 'GB'];
@@ -16,24 +48,119 @@
             return [hodnota, 'B'];
         }
 
+        function prevod() {
+            const hodnota = +document.getElementById("prevod-hodnota").value;
+            const jednotka = document.getElementById("prevod-jednotka").value;
+            const na = document.getElementById("prevod-na").value;
+            let prepocet = hodnota * jednotky.find(j => j[0] === jednotka)[1] / jednotky.find(j => j[0] === na)[1];
+            const vysledek = document.getElementById("prevod-vysledek");
+            vysledek.innerHTML = prepocet + ' ' + na;
+        }
+
         function fs_vypocet() {
-            const sektory = document.getElementById("fs-sektory").value;
-            const fat = document.getElementById("fs-fat").value;
+            const sektory = +document.getElementById("fs-sektory").value;
+            const fat = +document.getElementById("fs-fat").value;
             const hodnota = sektory * 512 * Math.pow(2, fat);
             const prepocet = prepocitej(hodnota);
             const vysledek = document.getElementById("fs-vysledek");
             vysledek.innerHTML = prepocet[0] + ' ' + prepocet[1];
         }
 
+        function nevcas_vypocet() {
+            const cas = +document.getElementById("nevcas-cas").value;
+            const procesy = +document.getElementById("nevcas-procesy").value;
+            const hodnota = Math.pow(cas, procesy) * 100;
+            const vysledek = document.getElementById("nevcas-vysledek");
+            vysledek.innerHTML = hodnota;
+        }
+
+        function fstab_vypocet() {
+            const velikost = +document.getElementById("fstab-velikost").value * 1024 * 1024;
+            const sektory = +document.getElementById("fstab-sektory").value;
+            const fat = +document.getElementById("fstab-fat").value;
+            const hodnota = (velikost / (512.0 * sektory)) * (fat / 8.0);
+            const prepocet = prepocitej(hodnota);
+            const vysledek = document.getElementById("fstab-vysledek");
+            vysledek.innerHTML = prepocet[0] + ' ' + prepocet[1];
+        }
+
+        function soub_vypocet() {
+            const sektory = +document.getElementById("soub-sektory").value;
+            const soub1 = +document.getElementById("soub-1").value;
+            const soub2 = +document.getElementById("soub-2").value;
+            const soub3 = +document.getElementById("soub-3").value;
+            const aJednotka = 512.0 * sektory;
+            const f1 = Math.ceil(soub1 / aJednotka) * aJednotka;
+            const f2 = Math.ceil(soub2 / aJednotka) * aJednotka;
+            const f3 = Math.ceil(soub3 / aJednotka) * aJednotka;
+            const hodnota = ((f1 + f2 + f3) - (soub1 + soub2 + soub3)) / (f1 + f2 + f3);
+            const vysledek = document.getElementById("soub-vysledek");
+            vysledek.innerHTML = hodnota * 100;
+        }
+
+        function cpu_vypocet() {
+            const usek = +document.getElementById("cpu-usek").value;
+            const cs = +document.getElementById("cpu-switch").value;
+            const kvantum = +document.getElementById("cpu-kvantum").value;
+            const hodnota = (Math.floor(usek / (cs + kvantum)) * cs) / usek;
+            const vysledek = document.getElementById("cpu-vysledek");
+            vysledek.innerHTML = hodnota * 100;
+        }
     </script>
 </head>
 
 <body>
+    <h2>Převod jednotek</h2>
+    <input type="number" name="prevod-hodnota" id="prevod-hodnota">
+    <select name="prevod-jednotka" id="prevod-jednotka">
+        <option value="B">B</option>
+        <option value="kB">kB</option>
+        <option value="MB">MB</option>
+        <option value="GB">GB</option>
+    </select>
+    na
+    <select name="prevod-na" id="prevod-na">
+        <option value="B">B</option>
+        <option value="kB">kB</option>
+        <option value="MB">MB</option>
+        <option value="GB">GB</option>
+    </select>
+    <button onclick="prevod()">Převést</button>
+    <div>Výsledek: <span id="prevod-vysledek">?</span></div>
+
     <h2>Maximální velikost souborového systému FAT</h2>
     Velikost alokační jednotky <input type="number" name="fs-sektory" id="fs-sektory"> sektorů<br>
-    FAT<input type="number" name="fs-fat" id="fs-fat">
+    FAT<input type="number" name="fs-fat" id="fs-fat"><br>
     <button onclick="fs_vypocet()">Vypočítat</button>
     <div>Maximální velikost: <span id="fs-vysledek">?</span></div>
+
+    <h2>Nevyužitý čas CPU při V/V operacích</h2>
+    Kolik času se čeká na V/V: <input type="number" name="nevcas-cas" id="nevcas-cas"><br>
+    Počet současně běžících procesů: <input type="number" name="nevcas-procesy" id="nevcas-procesy"><br>
+    <button onclick="nevcas_vypocet()">Vypočítat</button>
+    <div>Nevyužitý čas CPU: <span id="nevcas-vysledek">?</span> %</div>
+
+    <h2>Velikost tabulky souborového systému FAT</h2>
+    Velikost FS: <input type="number" name="fstab-velikost" id="fstab-velikost"> MB<br>
+    Velikost alokační jednotky: <input type="number" name="fstab-sektory" id="fstab-sektory"> sektorů<br>
+    FAT<input type="number" name="fstab-fat" id="fstab-fat"><br>
+    <button onclick="fstab_vypocet()">Vypočítat</button><br>
+    <div>Velikost tabulky: <span id="fstab-vysledek">?</span></div>
+
+    <h2>Nevyužitý prostor při uložení souborů</h2>
+    Velikost alokační jednotky <input type="number" name="soub-sektory" id="soub-sektory"> sektorů<br>
+    1. soubor <input type="number" name="soub-1" id="soub-1"> B<br>
+    2. soubor <input type="number" name="soub-2" id="soub-2"> B<br>
+    3. soubor <input type="number" name="soub-3" id="soub-3"> B<br>
+    <button onclick="soub_vypocet()">Vypočítat</button><br>
+    <div>Nevyužitý prostor: <span id="soub-vysledek">?</span> %</div>
+
+    <h2>Nevyužitý čas CPU</h2>
+    Časový úsek: <input type="number" name="cpu-usek" id="cpu-usek"> ms<br>
+    Trvání context-switch: <input type="number" name="cpu-switch" id="cpu-switch"> ms<br>
+    Časové kvantum: <input type="number" name="cpu-kvantum" id="cpu-kvantum"> ms<br>
+    <button onclick="cpu_vypocet()">Vypočítat</button><br>
+    <div>Nevyužitý čas CPU: <span id="cpu-vysledek">?</span> %</div>
 </body>
 
 </html>
