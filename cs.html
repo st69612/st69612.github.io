@@ -1,0 +1,411 @@
+<h1>Threading</h1>
+<pre>
+    using System;
+    using System.Threading;
+    using System.Threading.Tasks;
+    using System.Windows;
+    
+    namespace ThreadingCSharp
+    {
+        /// <summary>
+        /// Interaction logic for MainWindow.xaml - btw this is not a good MVVM example!
+        /// </summary>
+        public partial class MainWindow : Window
+        {
+            private AlgorithmBase algorithm;
+            public bool UseMandelbrot { get; set; } = true;
+    
+            public MainWindow()
+            {
+                InitializeComponent();
+                DataContext = this;
+            }
+    
+            private void Prepare()
+            {
+                if (UseMandelbrot)
+                    algorithm = new Mandelbrot();
+                else
+                    algorithm = new NewtonSolver();
+    
+                algorithm.Prepare();
+    
+                btnSync.IsEnabled = false;
+                btnThread.IsEnabled = false;
+                btnThread2.IsEnabled = false;
+                btnThreadPool.IsEnabled = false;
+                btnTask.IsEnabled = false;
+                btnParallel.IsEnabled = false;
+    
+                algorithm.StartTimeMeasurement();
+            }
+    
+            private void Finish()
+            {
+                algorithm.StopTimeMeasurement();
+    
+                btnSync.IsEnabled = true;
+                btnThread.IsEnabled = true;
+                btnThread2.IsEnabled = true;
+                btnThreadPool.IsEnabled = true;
+                btnTask.IsEnabled = true;
+                btnParallel.IsEnabled = true;
+    
+                DurationText.Text = algorithm.Duration.ToString();
+                ImageBox.Source = algorithm.GetWPFBitmapSource();
+            }
+    
+            private void SyncClick(object sender, RoutedEventArgs e)
+            {
+                Prepare();
+                algorithm.Solve();
+                Finish();
+            }
+    
+            private void ThreadClick(object sender, RoutedEventArgs e)
+            {
+                // TODO: solve problem using Thread class (thread for each image row)
+                // Implement necessary threading/splitting algorithms here or in AlgorithmBase class
+    
+                // IMPORTANT: be aware of synchronization issues and blocking of UI thread
+                // synchronization issues must be resolved in Mandelbrot and NewtonSolver class (use lock())
+                // UI thread synchronization must be solved here (see Dispatcher.Invoke)
+    
+                Prepare();
+                Thread[] threads = new Thread[algorithm.Height];
+    
+                new Thread(() =>
+                {
+                    for (int i = 0; i < algorithm.Height; i++)
+                    {
+                        int row = i;
+                        Thread rowThread = new Thread(() => algorithm.SolveRow(row));
+                        threads[i] = rowThread;
+                        rowThread.Start();
+                    }
+    
+                    foreach (Thread thread in threads)
+                    {
+                        thread.Join();
+                    }
+    
+                    Dispatcher.Invoke(() =>
+                    {
+                        Finish();
+                    });
+                }).Start();
+            }
+    
+            private void Thread2Click(object sender, RoutedEventArgs e)
+            {
+                // TODO: solve problem using Thread class (thread for each processor)
+    
+                int parts = Environment.ProcessorCount;
+                Thread[] threads = new Thread[parts];
+    
+                Prepare();
+    
+                new Thread(() =>
+                {
+                    for (int i = 0; i < parts; i++)
+                    {
+                        int part = i;
+                        Thread partThread = new Thread(() => algorithm.SolvePart(part, parts));
+                        threads[i] = partThread;
+                        partThread.Start();
+                    }
+    
+                    foreach (Thread thread in threads)
+                    {
+                        thread.Join();
+                    }
+    
+                    Dispatcher.Invoke(() =>
+                    {
+                        Finish();
+                    });
+                }).Start();
+            }
+    
+            private void ThreadPoolClick(object sender, RoutedEventArgs e)
+            {
+                // TODO: solve problem using thread pool
+    
+                Prepare();
+    
+                CountdownEvent countdown = new CountdownEvent(algorithm.Height);
+    
+                ThreadPool.QueueUserWorkItem((o) =>
+                {
+                    for (int i = 0; i < algorithm.Height; i++)
+                    {
+                        int row = i;
+    
+                        ThreadPool.QueueUserWorkItem((oo) =>
+                        {
+                            algorithm.SolveRow(row);
+                            countdown.Signal();
+                        });
+                    }
+    
+                    countdown.Wait();
+    
+                    Dispatcher.Invoke(() =>
+                    {
+                        Finish();
+                    });
+                });
+            }
+    
+            private void TaskRunClick(object sender, RoutedEventArgs e)
+            {
+                // TODO: try to solve using Task.Run
+    
+                Prepare();
+    
+                Task[] tasks = new Task[algorithm.Height];
+    
+                Task.Run(() =>
+                {
+                    for (int i = 0; i < algorithm.Height; i++)
+                    {
+                        int row = i;
+    
+                        tasks[i] = Task.Run(() => algorithm.SolveRow(row));
+                    }
+    
+                    foreach (Task task in tasks)
+                    {
+                        task.Wait();
+                    }
+    
+                    Dispatcher.Invoke(Finish);
+                });
+            }
+    
+            private void ParallelClick(object sender, RoutedEventArgs e)
+            {
+                // TODO: try to solve using Parallel
+    
+                Prepare();
+    
+                Task.Run(() =>
+                {
+                    Parallel.For(0, algorithm.Height, i => algorithm.SolveRow(i));
+    
+                    Dispatcher.Invoke(Finish);
+                });
+            }
+        }
+    }
+</pre>
+<h1>Async</h1>
+<pre>
+    using System.Collections.Generic;
+    using System.Threading;
+    using System.Threading.Tasks;
+    using System.Windows;
+    using System.Net.Http;
+    
+    namespace ThreadingCSharp
+    {
+        /// <summary>
+        /// Interaction logic for MainWindow.xaml - btw this is not a good MVVM example!
+        /// </summary>
+        public partial class MainWindow : Window
+        {
+            public const string ServiceEndpoint = "http://localhost:5000/";
+    
+            private readonly AlgorithmBase algorithm = new AlgorithmBase();
+            public int RequestsCount { get; set; } = 10;
+    
+            public MainWindow()
+            {
+                InitializeComponent();
+                DataContext = this;
+            }
+    
+            private void Prepare()
+            {
+                btnSync.IsEnabled = false;
+                btnThread.IsEnabled = false;
+                btnThreadPool.IsEnabled = false;
+                btnTask.IsEnabled = false;
+                btnAsync.IsEnabled = false;
+    
+                algorithm.StartTimeMeasurementAndClearResults();
+            }
+    
+            // This method must be run on UI-thread!
+            private void Finish()
+            {
+                algorithm.StopTimeMeasurement();
+    
+                btnSync.IsEnabled = true;
+                btnThread.IsEnabled = true;
+                btnThreadPool.IsEnabled = true;
+                btnTask.IsEnabled = true;
+                btnAsync.IsEnabled = true;
+    
+                DurationText.Text = algorithm.Duration.ToString();
+    
+                Listbox.Items.Clear();
+                foreach (var item in algorithm.Results)
+                    Listbox.Items.Add(item);
+            }
+    
+            private void SyncClick(object sender, RoutedEventArgs e)
+            {
+                Prepare();
+    
+                for (int i = 0; i < RequestsCount; i++)
+                {
+                    HttpClient httpClient = new HttpClient();
+                    var task = httpClient.GetAsync(ServiceEndpoint + i);
+                    task.Wait();
+    
+                    var result = task.Result.Content.ReadAsStringAsync();
+                    result.Wait();
+    
+                    algorithm.AddResult(result.Result);
+                }
+    
+                Finish();
+            }
+    
+            private void ThreadClick(object sender, RoutedEventArgs e)
+            {
+                // TODO: solve problem using Thread class (thread for each request)
+                // Implement necessary threading/splitting algorithms here or in AlgorithmBase class
+    
+                // IMPORTANT: be aware of synchronization issues and blocking of UI thread
+                // UI thread synchronization must be solved here (see Dispatcher.Invoke)
+    
+                Prepare();
+    
+                new Thread(() =>
+                {
+                    Thread[] threads = new Thread[RequestsCount];
+                    for (int i = 0; i < RequestsCount; i++)
+                    {
+                        var localI = i;
+    
+                        threads[localI] = new Thread(() =>
+                        {
+                            HttpClient httpClient = new HttpClient();
+                            var task = httpClient.GetAsync(ServiceEndpoint + localI);
+                            task.Wait();
+    
+                            var result = task.Result.Content.ReadAsStringAsync();
+                            result.Wait();
+    
+                            algorithm.AddResult(result.Result);
+                        });
+                        threads[localI].Start();
+                    }
+    
+                    for (int i = 0; i < RequestsCount; i++)
+                    {
+                        threads[i].Join();
+                    }
+    
+                    Dispatcher.Invoke(Finish);
+                }).Start();
+            }
+    
+            private void ThreadPoolClick(object sender, RoutedEventArgs e)
+            {
+                // TODO: solve problem using thread pool
+    
+                Prepare();
+    
+                CountdownEvent countdown = new CountdownEvent(RequestsCount);
+    
+                ThreadPool.QueueUserWorkItem((state) =>
+                {
+    
+                    for (int i = 0; i < RequestsCount; i++)
+                    {
+                        var localI = i;
+    
+                        ThreadPool.QueueUserWorkItem((states) =>
+                        {
+                            HttpClient httpClient = new HttpClient();
+                            var task = httpClient.GetAsync(ServiceEndpoint + localI);
+                            task.Wait();
+    
+                            var result = task.Result.Content.ReadAsStringAsync();
+                            result.Wait();
+    
+                            algorithm.AddResult(result.Result);
+    
+                            countdown.Signal();
+                        });
+                    }
+    
+                    countdown.Wait();
+    
+                    Dispatcher.Invoke(Finish);
+                });
+            }
+    
+            private void TaskRunClick(object sender, RoutedEventArgs e)
+            {
+                // TODO: try to solve using Task.Run
+    
+                Prepare();
+    
+                Task.Run(() =>
+                {
+                    Task[] tasks = new Task[RequestsCount];
+    
+                    for (int i = 0; i < RequestsCount; i++)
+                    {
+                        var localI = i;
+    
+                        tasks[localI] = Task.Run(() =>
+                        {
+                            HttpClient httpClient = new HttpClient();
+                            var task = httpClient.GetAsync(ServiceEndpoint + localI);
+                            task.Wait();
+    
+                            var result = task.Result.Content.ReadAsStringAsync();
+                            result.Wait();
+    
+                            algorithm.AddResult(result.Result);
+                        });
+                    }
+    
+                    Task.WaitAll(tasks);
+    
+                    Dispatcher.Invoke(Finish);
+                });
+            }
+    
+            private async void AwaitAsyncClick(object sender, RoutedEventArgs e)
+            {
+                // TODO: try to solve using await/async
+    
+                Prepare();
+    
+                var tasks = new Task<string>[RequestsCount];
+    
+                for (int i = 0; i < RequestsCount; i++)
+                {
+                    HttpClient httpClient = new HttpClient();
+    
+                    tasks[i] = httpClient.GetStringAsync(ServiceEndpoint + i);
+                }
+    
+                var results = await Task.WhenAll(tasks);
+    
+                foreach (var result in results)
+                {
+                    algorithm.AddResult(result);
+                }
+    
+                Finish();
+            }
+        }
+    }
+</pre>
