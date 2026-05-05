@@ -8,7 +8,7 @@
     <style>
         body {
             font-family: Arial, sans-serif;
-            line-height: 30px;
+            line-height: 35px;
             margin: 1rem 3rem;
         }
 
@@ -29,6 +29,20 @@
         div {
             margin-top: 0.5em;
         }
+
+        @media (prefers-color-scheme: dark) {
+            body {
+                background-color: rgb(24, 24, 24);
+                color: white;
+            }
+
+            input,
+            select {
+                background-color: rgb(16, 16, 16);
+                color: white;
+                border: 1px solid white;
+        }
+        }
     </style>
     <script>
         const jednotky = [
@@ -39,11 +53,11 @@
         ];
 
         function prepocitej(hodnota) {
-            if (hodnota > 1_000_000_000)
+            if (hodnota >= 1024 * 1024 * 1024)
                 return [hodnota / (1024.0 * 1024.0 * 1024.0), 'GB'];
-            if (hodnota > 1_000_000)
+            if (hodnota >= 1024 * 1024)
                 return [hodnota / (1024.0 * 1024.0), 'MB'];
-            if (hodnota > 1000)
+            if (hodnota >= 1024)
                 return [hodnota / 1024.0, 'kB'];
             return [hodnota, 'B'];
         }
@@ -60,18 +74,26 @@
         function fs_vypocet() {
             const sektory = +document.getElementById("fs-sektory").value;
             const fat = +document.getElementById("fs-fat").value;
-            const hodnota = sektory * 512 * Math.pow(2, fat);
+            
+            const bitu = (fat === 32) ? 28 : fat;
+            
+            const hodnota = sektory * 512 * Math.pow(2, bitu);
             const prepocet = prepocitej(hodnota);
             const vysledek = document.getElementById("fs-vysledek");
-            vysledek.innerHTML = prepocet[0] + ' ' + prepocet[1];
+            vysledek.innerHTML = Math.round(prepocet[0] * 100) / 100 + ' ' + prepocet[1];
         }
 
         function nevcas_vypocet() {
-            const cas = +document.getElementById("nevcas-cas").value;
+            let cas = +document.getElementById("nevcas-cas").value;
             const procesy = +document.getElementById("nevcas-procesy").value;
+            
+            if (cas > 1) {
+                cas = cas / 100.0;
+            }
+            
             const hodnota = Math.pow(cas, procesy) * 100;
             const vysledek = document.getElementById("nevcas-vysledek");
-            vysledek.innerHTML = hodnota;
+            vysledek.innerHTML = Math.round(hodnota * 100) / 100; // Zaokrouhleno
         }
 
         function fstab_vypocet() {
@@ -81,7 +103,7 @@
             const hodnota = (velikost / (512.0 * sektory)) * (fat / 8.0);
             const prepocet = prepocitej(hodnota);
             const vysledek = document.getElementById("fstab-vysledek");
-            vysledek.innerHTML = prepocet[0] + ' ' + prepocet[1];
+            vysledek.innerHTML = Math.round(prepocet[0] * 100) / 100 + ' ' + prepocet[1];
         }
 
         function soub_vypocet() {
@@ -95,16 +117,17 @@
             const f3 = Math.ceil(soub3 / aJednotka) * aJednotka;
             const hodnota = ((f1 + f2 + f3) - (soub1 + soub2 + soub3)) / (f1 + f2 + f3);
             const vysledek = document.getElementById("soub-vysledek");
-            vysledek.innerHTML = hodnota * 100;
+            vysledek.innerHTML = Math.round((hodnota * 100) * 100) / 100;
         }
 
         function cpu_vypocet() {
-            const usek = +document.getElementById("cpu-usek").value;
             const cs = +document.getElementById("cpu-switch").value;
             const kvantum = +document.getElementById("cpu-kvantum").value;
-            const hodnota = (Math.floor(usek / (cs + kvantum)) * cs) / usek;
+            
+            const hodnota = cs / (cs + kvantum);
+            
             const vysledek = document.getElementById("cpu-vysledek");
-            vysledek.innerHTML = hodnota * 100;
+            vysledek.innerHTML = Math.round((hodnota * 100) * 100) / 100;
         }
     </script>
 </head>
